@@ -1,0 +1,12 @@
+streamlit>=1.22
+spotipy>=2.23.0
+pandas>=1.5
+numpy>=1.24
+plotly>=5.16
+matplotlib>=3.7
+nltk>=3.8
+python-dotenv>=1.0
+requests>=2.31
+scikit-learn>=1.2
+joblib>=1.2
+pyngrok>=5.2.1
