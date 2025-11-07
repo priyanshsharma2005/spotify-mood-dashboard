@@ -2,9 +2,15 @@
 import pandas as pd
 import numpy as np
 from typing import List, Dict, Optional
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from joblib import Memory
 import os
+
+# Attempt to import VADER, but download lexicon at runtime if missing
+try:
+    from nltk.sentiment.vader import SentimentIntensityAnalyzer
+except Exception:
+    # will try to import again after ensuring data
+    SentimentIntensityAnalyzer = None
 
 memory = Memory(location=os.path.join(".cache"), verbose=0)
 
@@ -55,10 +61,34 @@ def aggregate_for_region(df: pd.DataFrame, region_name: str) -> Dict:
     out.update({f"pct_{k}": float(v) for k,v in cat_counts.items()})
     return out
 
-# Light-weight title sentiment
-_sia = SentimentIntensityAnalyzer()
+# --- Title sentiment with safe fallback ---
+def _ensure_vader():
+    """
+    Ensure that nltk vader lexicon is available and return a SentimentIntensityAnalyzer.
+    This will download the resource if missing (works on Streamlit Cloud).
+    """
+    import nltk
+    global SentimentIntensityAnalyzer
+    if SentimentIntensityAnalyzer is None:
+        try:
+            from nltk.sentiment.vader import SentimentIntensityAnalyzer as SIA
+            return SIA()
+        except Exception:
+            # try to download the lexicon and import again
+            nltk.download('vader_lexicon')
+            from nltk.sentiment.vader import SentimentIntensityAnalyzer as SIA
+            return SIA()
+    else:
+        return SentimentIntensityAnalyzer()
+
 def title_sentiment_score(title: str) -> float:
     if title is None:
         return 0.0
-    s = _sia.polarity_scores(title)
-    return s['compound']
+    try:
+        sia = _ensure_vader()
+        s = sia.polarity_scores(title)
+        return s.get('compound', 0.0)
+    except Exception:
+        # fallback: neutral sentiment if anything goes wrong
+        return 0.0
+
